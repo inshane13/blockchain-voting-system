@@ -1,0 +1,107 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Voting System Off-Chain Logger API",
+    "version": "1.0.0",
+    "description": "Non-authoritative event logger for the commit-reveal voting dApp. Eligibility and vote tallies are authoritative only on-chain (VoterRegistry.isEligible / Voting.getVotes)."
+  },
+  "servers": [{ "url": "http://localhost:5000" }],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health check",
+        "responses": {
+          "200": {
+            "description": "Service status and row counts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string" },
+                    "totalEvents": { "type": "integer" },
+                    "totalVoters": { "type": "integer" },
+                    "database": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/voters": {
+      "get": {
+        "summary": "List locally tracked voters (non-authoritative)",
+        "responses": { "200": { "description": "Array of voter records" } }
+      },
+      "post": {
+        "summary": "Record a voter in the local log store (non-authoritative)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["address"],
+                "properties": { "address": { "type": "string" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Created" },
+          "400": { "description": "Address required or duplicate" }
+        }
+      }
+    },
+    "/api/voters/{address}": {
+      "get": {
+        "summary": "Non-authoritative eligibility check",
+        "parameters": [
+          {
+            "name": "address",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "offChainEligible flag plus a note directing callers to the chain"
+          }
+        }
+      }
+    },
+    "/api/vote-events": {
+      "get": {
+        "summary": "Fetch logged commit/reveal events",
+        "responses": { "200": { "description": "Array of vote events" } }
+      },
+      "post": {
+        "summary": "Log a vote commit or reveal event",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["type"],
+                "properties": {
+                  "type": { "type": "string", "enum": ["commit", "reveal"] },
+                  "voter": { "type": "string" },
+                  "hash": { "type": "string" },
+                  "candidateIndex": { "type": "integer" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Created" },
+          "400": { "description": "type required" }
+        }
+      }
+    }
+  }
+}

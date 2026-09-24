@@ -1,0 +1,25 @@
+name: Deploy Sepolia
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Deploy to Sepolia
+        run: npx hardhat run scripts/deploy.js --network sepolia
+        env:
+          SEPOLIA_URL: ${{ secrets.SEPOLIA_URL }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+      - name: Upload deployment artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployments
+          path: deployments.json

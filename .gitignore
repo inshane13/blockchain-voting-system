@@ -1,0 +1,9 @@
+.env.local
+.env
+node_modules/
+.next/
+.DS_Store
+artifacts/
+cache/
+deployments.json
+backend/data/
