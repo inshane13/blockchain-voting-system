@@ -211,20 +211,14 @@ if (process.env.TRUST_PROXY === '1') {
 }
 app.disable('x-powered-by');
 
-app.use(express.json({ limit: BODY_LIMIT }));
+// Middleware order is load-bearing: headers → CORS → limiter → parser.
+// Express unwinds straight to the error handler on throw, skipping everything
+// registered after the throwing middleware. So headers must be FIRST (a 413/400
+// from the body parser still carries CSP/nosniff/DENY), CORS second (preflights
+// never reach the parser), the limiter third (no CPU spent parsing bodies for
+// clients already over budget), and the JSON parser last.
 
-// Strict CORS allowlist (never '*')
-app.use(
-  cors({
-    origin: ALLOWED_ORIGINS,
-    credentials: false,
-    methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type'],
-    maxAge: 86400,
-  })
-);
-
-// Security headers
+// 1. Security headers on every response, including parser-error paths.
 app.use((req, res, next) => {
   // API serves JSON only: deny everything by default, no framing, no MIME sniffing
   res.set('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
@@ -240,7 +234,22 @@ app.use((req, res, next) => {
   next();
 });
 
+// 2. Strict CORS allowlist (never '*')
+app.use(
+  cors({
+    origin: ALLOWED_ORIGINS,
+    credentials: false,
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type'],
+    maxAge: 86400,
+  })
+);
+
+// 3. Rate limit before parsing.
 app.use(globalLimiter);
+
+// 4. Body parser last.
+app.use(express.json({ limit: BODY_LIMIT }));
 
 // --- Routes (public API contract unchanged) ---
 

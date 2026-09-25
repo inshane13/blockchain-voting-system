@@ -52,7 +52,9 @@
         "responses": {
           "201": { "description": "Created", "content": { "application/json": { "schema": { "type": "object", "properties": { "success": { "type": "boolean" }, "address": { "type": "string" } } } } } },
           "200": { "description": "Already recorded", "content": { "application/json": { "schema": { "type": "object", "properties": { "success": { "type": "boolean" }, "address": { "type": "string" }, "created_at": { "type": "string" }, "note": { "type": "string" } } } } } },
-          "400": { "description": "Address required" },
+          "400": { "description": "Invalid address (must be 0x + 40 hex chars)" },
+          "413": { "description": "Payload too large (body limit exceeded)" },
+          "429": { "description": "Rate limit exceeded (see Retry-After header)" },
           "500": { "description": "Server error" }
         }
       }
@@ -71,7 +73,8 @@
         "responses": {
           "200": {
             "description": "offChainEligible flag plus a note directing callers to the chain"
-          }
+          },
+          "400": { "description": "Invalid address format (must be 0x + 40 hex chars)" }
         }
       }
     },
@@ -101,7 +104,9 @@
         },
         "responses": {
           "201": { "description": "Created" },
-          "400": { "description": "type required" }
+          "400": { "description": "Validation failure: bad type, voter address, hash, or candidate_index" },
+          "413": { "description": "Payload too large (body limit exceeded)" },
+          "429": { "description": "Rate limit exceeded (see Retry-After header)" }
         }
       }
     }

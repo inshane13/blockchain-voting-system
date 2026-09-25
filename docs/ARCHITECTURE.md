@@ -77,7 +77,8 @@ share the max **and** max > 0; `winnerIdx` = lowest index at max (0 when no vote
 
 - SQLite: one handle, `busy_timeout`, WAL; closed on SIGINT/SIGTERM after HTTP drain
   (10s forced-exit backstop).
-- Rate-limiter buckets: pruned every 5 min (unref'd timer); bounded memory.
+- Rate-limiter buckets: pruned every 5 min (unref'd timer); bounded memory (~50 bytes ×
+  live IPs, 10-min idle expiry — an IP-rotating flood is testnet-irrelevant at this scale).
 - Ethers listeners: `removeAllListeners` on re-init; `off()` on effect cleanup.
 - No background threads/workers; single-threaded Node event loop, all-async I/O.
 

@@ -4,6 +4,18 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/); versioning follows
 [Semantic Versioning](https://semver.org/).
 
+## [2.1.1] — 2026-09-25 — Middleware-order fix + spec convergence (no contract changes)
+
+### Fixed
+- Middleware order is now headers → CORS → limiter → parser, so 413/400 responses
+  from the body parser carry security headers and pass through the rate limiter
+  (previously both controls were structurally bypassed on parser-error paths).
+- `swagger.json` now documents the 400/413/429 responses the code actually returns.
+
+### Verification
+- 413 + malformed-JSON 400 responses carry CSP/nosniff/DENY + `X-RateLimit-*` headers.
+- Full gate re-run: see release commit message.
+
 ## [2.1.0] — 2026-09-25 — Security hardening pass (no contract changes)
 
 ### Added
