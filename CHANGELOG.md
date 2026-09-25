@@ -4,7 +4,7 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/); versioning follows
 [Semantic Versioning](https://semver.org/).
 
-## [2.3.0] — 2026-09-25 — Research alignment + gas benchmarks (no contract changes)
+## [2.3.0] — 2026-09-25 — Research alignment + benchmarks + observer verification (no contract changes)
 
 ### Added
 - `docs/RESEARCH.md`: Manda & Bhukya (2024) meta-analysis mapping — technical
@@ -16,6 +16,12 @@ All notable changes to this project are documented here. Format follows
   `addVoter` 47,938; `commit` 78,792; `reveal` 75,895) with Sepolia receipts
   matching Hardhat exactly; asserted-vs-measured deltas flagged (+37/+63/+85%);
   945M-voter L1 projection (~677 days at 100% block space); limitations matrix.
+- `docs/VERIFY.md`: two-tier observer runbook (Etherscan click-path + curl/RPC),
+  D1-primary with D3-live section, key-rotation note (recommended/pending).
+- `scripts/verifyTally.js`: offline tally verifier (export + CLI, 10-block paging
+  with backoff for free-tier RPCs) + `test/verifyTally.test.js` fixture (2 tests).
+- Frontend voter-education panel in the commit card (sessionStorage dismissal,
+  salt-loss warning, ARIA semantics, amber styling).
 
 ### Fixed
 - README title no longer carries the version (versions live in

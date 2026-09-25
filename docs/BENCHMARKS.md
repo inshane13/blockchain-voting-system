@@ -17,18 +17,20 @@ live Sepolia receipts are appended as a labeled historical sample.
 
 | Operation | Hardhat (primary) | Sepolia receipt (historical) | Matches? | Notes |
 |---|---|---|---|---|
-| `VotingFactory.createElection()` | 1,713,396 | n/a (deploy tx hash not retained) | — | Deploys `Voting` + `VoterRegistry` pair; one-time per election |
+| `VotingFactory.createElection()` | 1,713,396 | n/a (deploy tx hash not retained) | — | Deploys two full contracts (`Voting` + `VoterRegistry`); cost dominated by bytecode deposit, one-time per election |
 | `VoterRegistry.addVoter()` | 47,938 | n/a | — | Cold `SSTORE` whitelist write; repeats per voter |
 | `Voting.commit()` | 78,792 | **78,792** (`0xc96b…e3c24`, status 1) | ✅ exact | Stores `commitments[voter]` hash |
-| `Voting.reveal()` | 75,895 | **75,895** (`0x7b69…6896`, status 1) | ✅ exact | Re-hash verify + tally + commitment delete |
+| `Voting.reveal()` | 75,895 | **75,895** (`0x7b69…6896`, status 1) | ✅ exact | Two cold slots (`votes[idx]`, `hasVoted`) + one delete (`commits`) ≈ 60k pre-overhead; the +85% delta reflects a pre-bytecode estimate, not a regression |
 
 Reproduce: `npx hardhat run scripts/e2e-local.js` exercises the same paths
 (asserted in CI); the scratch capture script used here is intentionally *not*
 committed — re-measure with any Hardhat run and read `receipt.gasUsed`.
 
-Takeaway: local EVM gas accounting reproduces live Sepolia execution exactly for
-these functions. Both are far above the ~21k SSTORE floor and far below block
-limits — plausible, no measurement bug.
+Takeaway: Hardhat reproduces the Sepolia receipts exactly because both apply the same
+EIP-2929/2200 storage schedule to identical calldata and storage state. This validates
+the harness as a measurement tool; it does not claim other chains or L2s will produce
+identical numbers. Both functions sit far above the ~21k SSTORE floor and far below
+block limits — plausible, no measurement bug.
 
 ## 2. Scale Projection — the 945M-Voter Problem (§4.3.1)
 
@@ -44,7 +46,8 @@ Ethereum L1 constraints (30M block gas limit, ~12s blocks ≈ 2.5M gas/s, 100% o
 block space to voting — already an impossible assumption):
 
 ```
-Throughput_max = 2,500,000 / 154,687 ≈ 16 votes/second
+Throughput_max = 2,500,000 / 154,687 ≈ 16 votes/second   (theoretical maximum at
+  100% block space; real deployments share blocks with all other traffic)
 Blocks_needed  = 1.4618e14 / 30,000,000 ≈ 4,872,641 blocks
 Time_needed    = 4,872,641 / 7,200 blocks/day ≈ 677 days (~1.9 years)
 ```

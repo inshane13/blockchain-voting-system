@@ -121,6 +121,24 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  // Voter-education panel visibility. Dismissal persists per tab session only
+  // (sessionStorage): a voter who returns later sees the salt warning again,
+  // which is exactly when they need it most.
+  const [showExplainer, setShowExplainer] = useState(() => {
+    try {
+      return sessionStorage.getItem('vote_explainer_dismissed') !== '1';
+    } catch {
+      return true;
+    }
+  });
+  const dismissExplainer = () => {
+    try {
+      sessionStorage.setItem('vote_explainer_dismissed', '1');
+    } catch {
+      /* storage unavailable — dismissal just won't persist */
+    }
+    setShowExplainer(false);
+  };
 
   // Contract addresses from environment variables
   const VOTING_ADDRESS = process.env.NEXT_PUBLIC_VOTING_ADDRESS || "";
@@ -174,21 +192,35 @@ export default function Home() {
     const fetchElections = async () => {
       try {
         const filter = factory.filters.ElectionCreated();
-        // Providers (e.g. Alchemy free tier) reject huge log ranges with
-        // "service temporarily unavailable". Query the recent window only,
-        // shrinking on failure — elections are always recent in practice.
+        // Free-tier RPCs cap eth_getLogs ranges (Alchemy free: 10 blocks) and
+        // throttle bursts (429), so page backward serially in 10-block windows.
+        // Capped at ~300 blocks of history — older elections stay reachable via
+        // their direct address (single-election flow), just not in the dropdown.
         const provider = factory.runner?.provider;
-        let events = null;
-        let lastErr = null;
-        for (const span of [20000, 5000, 2000]) {
-          try {
-            const latest = await provider.getBlockNumber();
-            events = await factory.queryFilter(filter, Math.max(0, latest - span), 'latest');
-            lastErr = null;
-            break;
-          } catch (e) { lastErr = e; }
+        const PAGE = 10;
+        const MAX_PAGES = 30;
+        const latest = await provider.getBlockNumber();
+        const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+        const found = [];
+        for (let p = 0; p < MAX_PAGES; p++) {
+          if (cancelled) return;
+          const to = latest - p * PAGE;
+          if (to < 0) break;
+          const from = Math.max(0, to - PAGE + 1);
+          let batch = null;
+          for (let attempt = 0; attempt < 3 && !batch; attempt++) {
+            try {
+              batch = await factory.queryFilter(filter, from, to);
+            } catch (e) {
+              await sleep(400 * 2 ** attempt);
+            }
+          }
+          if (!batch) continue; // skip throttled pages; keep what we have
+          for (const e of batch) found.push(e);
         }
-        if (!events) throw lastErr || new Error('log query failed');
+        // Chronological (oldest first) so position [0] is a stable default.
+        found.sort((a, b) => (a.blockNumber - b.blockNumber) || (a.index - b.index));
+        const events = found;
         if (cancelled) return;
         const list = events.map(e => ({
           voting: e.args.voting,
@@ -576,7 +608,44 @@ export default function Home() {
       {connected && isEligible && electionData && !hasRevealed && (
         <div style={{ marginBottom: '20px', padding: '15px', border: '1px solid #ddd', borderRadius: '8px' }}>
           <h3>Cast Your Vote</h3>
-          
+
+          {showExplainer && (
+            <section
+              aria-label="How commit-reveal voting works"
+              aria-describedby="explainer-body"
+              style={{ marginBottom: '15px', padding: '12px 14px', backgroundColor: '#fffbeb', color: '#92400e', border: '1px solid #fcd34d', borderRadius: '6px' }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
+                <strong id="explainer-heading">Why two steps?</strong>
+                <button
+                  type="button"
+                  onClick={dismissExplainer}
+                  aria-expanded={showExplainer}
+                  aria-controls="explainer-body"
+                  aria-label="Dismiss voting explanation"
+                  style={{ padding: '2px 10px', cursor: 'pointer', backgroundColor: 'transparent', color: '#92400e', border: '1px solid #fcd34d', borderRadius: '4px' }}
+                >
+                  Dismiss
+                </button>
+              </div>
+              <div id="explainer-body">
+                <p style={{ margin: '8px 0' }}>
+                  <strong>Step 1 — Commit:</strong> your choice is sealed into a cryptographic hash.
+                  Nobody can see who you voted for, so early results can&apos;t influence other voters.
+                </p>
+                <p style={{ margin: '8px 0' }}>
+                  <strong>Step 2 — Reveal:</strong> after the commit deadline you submit your
+                  choice plus your secret salt, and the contract counts your vote.
+                </p>
+                <p style={{ margin: '8px 0' }}>
+                  <strong>Keep your salt:</strong> it is saved in this browser only. Do not clear
+                  browser data during the election — losing your salt means your vote cannot be
+                  revealed or counted. Consider writing it down.
+                </p>
+              </div>
+            </section>
+          )}
+
           {hasCommitted ? (
             <div style={{ padding: '15px', backgroundColor: '#fff3cd', border: '1px solid #ffeaa7', borderRadius: '4px', marginBottom: '15px' }}>
               <h4> Vote Committed Successfully!</h4>
