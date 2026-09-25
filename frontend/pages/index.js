@@ -44,10 +44,14 @@ const VOTER_REGISTRY_ABI = [
 
 const VOTING_INTERFACE = new ethers.Interface(VOTING_ABI);
 const REGISTRY_INTERFACE = new ethers.Interface(VOTER_REGISTRY_ABI);
-const FACTORY_INTERFACE = new ethers.Interface([
+// NOTE: this ABI must include the ElectionCreated event — the election fetcher
+// builds its filter from it. An event-less ABI makes factory.filters undefined
+// and crashes the fetch effect (seen in dev on 2026-09-25).
+const FACTORY_ABI = [
   "function createElection(string name, string[] candidates, uint256 commitDuration, uint256 revealDuration, address admin) returns (address, address)",
   "event ElectionCreated(address indexed voting, address indexed registry, string name, string[] candidates, uint256 commitDuration, uint256 revealDuration)"
-]);
+];
+const FACTORY_INTERFACE = new ethers.Interface(FACTORY_ABI);
 
 // Decode custom errors (revert data) into a readable label; fall back to standard messages.
 const describeError = (error) => {
@@ -132,24 +136,27 @@ export default function Home() {
     connectWallet();
   }, []);
 
+  // Init contracts first; data loads in the effect below once the contract
+  // instances exist. (Calling loadElectionData() synchronously after
+  // initializeContracts() reads stale null state and never retries — that
+  // stuck eligibility on false in dev on 2026-09-25.)
   useEffect(() => {
     if (connected && signer) {
       initializeContracts();
-      loadElectionData();
     }
   }, [connected, signer]);
+
+  useEffect(() => {
+    if (connected && votingContract && voterRegistryContract && account) {
+      loadElectionData();
+    }
+  }, [connected, votingContract, voterRegistryContract, account]);
 
   // Factory: load factory contract if address configured, optionally fetch elections
   useEffect(() => {
     if (!signer || !FACTORY_ADDRESS) return;
     try {
-      const factoryCon = new ethers.Contract(
-        FACTORY_ADDRESS,
-        [
-          "function createElection(string name, string[] candidates, uint256 commitDuration, uint256 revealDuration, address admin) returns (address, address)",
-        ],
-        signer
-      );
+      const factoryCon = new ethers.Contract(FACTORY_ADDRESS, FACTORY_ABI, signer);
       setFactory(factoryCon);
     } catch (e) {
       console.error("Factory init error:", e);
@@ -159,6 +166,10 @@ export default function Home() {
   // Fetch elections from factory
   useEffect(() => {
     if (!signer || !FACTORY_ADDRESS || !factory) return;
+    if (!factory.filters || typeof factory.filters.ElectionCreated !== 'function') {
+      console.error('Factory contract missing ElectionCreated event — check FACTORY_ABI');
+      return;
+    }
     let cancelled = false;
     const fetchElections = async () => {
       try {
@@ -221,6 +232,7 @@ export default function Home() {
       if (accounts.length > 0) {
         setAccount(accounts[0]);
         setConnected(true);
+        setError(''); // clear stale errors (e.g. an earlier rejected auto-connect)
         const signer = await ethersProvider.getSigner();
         setSigner(signer);
       }

@@ -4,6 +4,21 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/); versioning follows
 [Semantic Versioning](https://semver.org/).
 
+## [2.2.1] — 2026-09-25 — Frontend election-flow fixes (no contract changes)
+
+### Fixed
+- Factory contract instance now built with the full `FACTORY_ABI` (was missing the
+  `ElectionCreated` event, so `factory.filters.ElectionCreated` was undefined and
+  the election fetch crashed). Shared `FACTORY_ABI` constant feeds both the
+  contract instance and `FACTORY_INTERFACE`; fetch effect guards the filter.
+- Split contract init from data loading into two effects: calling
+  `loadElectionData()` synchronously after `initializeContracts()` read stale
+  null contract state and never retried, leaving eligibility stuck on false.
+- Successful wallet connect now clears stale errors (e.g. a rejected auto-connect).
+
+### Verification
+- `frontend: lint` 0 errors, `build` success. No contract changes; Sepolia pair unaffected.
+
 ## [2.2.0] — 2026-09-25 — Automation, tests, CI/CD, verified maths (no contract changes)
 
 ### Added
