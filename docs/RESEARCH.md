@@ -41,7 +41,7 @@ The meta-analysis by Manda & Bhukya (2024) synthesizes research trends across 88
 | **Privacy-Enhancing Techniques (PETs)** (§3.1.7) | None implemented; choice is public on-chain post-reveal. | **Explicit Gap**: Does not implement Homomorphic Encryption (HE), Ring Signatures, or Zero-Knowledge Proofs (ZKPs). |
 | **Coercion Resistance & Receipt-Freeness** (§4.1) | Absent; `salt` persisted in browser `localStorage` acts as a voting receipt. | **Explicit Gap**: Vulnerable to voter coercion if forced to disclose salt. |
 | **Universal Verifiability** (§4.1) | Public state inspection via RPC or block explorer. | **Partial**: Provides public inclusion and tally proofs, but lacks individual anonymous inclusion proofs. |
-| **Scalability Constraints** (§4.3.1) | 2 on-chain transactions per voter on Ethereum L1. | **Explicit Gap**: Subject to L1 gas and throughput limits; infeasible for national scale (945M voters). |
+| **Scalability Constraints** (§4.3.1) | 2 on-chain transactions per voter on Ethereum L1. | **Explicit Gap**: Subject to L1 gas and throughput limits; infeasible for national scale (945M voters). Measured: 154,687 gas/voter → ~677 days at 100% L1 block space. Full numbers in [`docs/BENCHMARKS.md`](BENCHMARKS.md). |
 | **Factory / Multi-Election Pattern** (§3.1.6) | `VotingFactory.sol` creates isolated `Voting` and `VoterRegistry` contract pairs per election. | **Aligned**: Prevents state mutation and cross-election data pollution. |
 | **Backend Architecture** (§4.1) | Non-authoritative Express audit logger without private key access or write authority over contract state. | **Superior Pattern**: Avoids the over-trusting centralized API anti-pattern noted in literature. |
 

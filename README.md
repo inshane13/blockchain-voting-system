@@ -1,4 +1,4 @@
-# Decentralized E-Voting System (v2.3.0)
+# Decentralized E-Voting System
 
 > **Scope & Architectural Framing**: A commit-reveal integrity prototype; explicitly does not provide voter anonymity post-reveal, coercion resistance, or national-scale L1 throughput.
 

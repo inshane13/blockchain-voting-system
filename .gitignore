@@ -7,3 +7,6 @@ artifacts/
 cache/
 deployments.json
 backend/data/
+# local-only reference material, never commit
+Meta-analysis_of_blockchain-powered_electronic_vot.pdf
+/references/*.pdf

@@ -4,7 +4,7 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/); versioning follows
 [Semantic Versioning](https://semver.org/).
 
-## [2.3.0] — 2026-09-25 — Research alignment, Pass A (no contract changes)
+## [2.3.0] — 2026-09-25 — Research alignment + gas benchmarks (no contract changes)
 
 ### Added
 - `docs/RESEARCH.md`: Manda & Bhukya (2024) meta-analysis mapping — technical
@@ -12,6 +12,14 @@ All notable changes to this project are documented here. Format follows
   lineage, snapshot pinned to live Sepolia triple.
 - README first-line scope framing (integrity prototype; no anonymity,
   coercion resistance, or national-scale claims).
+- `docs/BENCHMARKS.md`: receipt-measured gas (`createElection` 1,713,396;
+  `addVoter` 47,938; `commit` 78,792; `reveal` 75,895) with Sepolia receipts
+  matching Hardhat exactly; asserted-vs-measured deltas flagged (+37/+63/+85%);
+  945M-voter L1 projection (~677 days at 100% block space); limitations matrix.
+
+### Fixed
+- README title no longer carries the version (versions live in
+  CHANGELOG/package.json only, so old tags stop displaying a wrong H1).
 
 ## [2.2.2] — 2026-09-25 — Frontend robustness fixes (no contract changes)
 
