@@ -106,7 +106,13 @@ Phase 1: Commit     | Phase 2: Reveal
 
 ---
 
-## 6. Document Maintenance
+## 6. Limitations Abstract
+
+A three-paragraph version of §4 for papers and proposals lives in
+[`docs/ABSTRACT.md`](ABSTRACT.md) — what the system does, what it does not,
+and what that means for deployment scope.
+
+## 7. Document Maintenance
 
 Re-stamp the snapshot header only on protocol releases or new factory deployments.
 Bump this document's claims only from measured repo state (test counts via the
