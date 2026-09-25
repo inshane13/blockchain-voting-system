@@ -3,6 +3,10 @@
 Single-issue records too small for a tracker ticket but too important to lose.
 Each entry: problem, fix shape, acceptance. Close by deleting the section.
 
+## CLOSED (2.4.0, `ec58e81`) — `verifyTally.js`: tx-hash receipt mode
+Shipped as `--tx <hash>[,…]` with fixture tests; proven live on D1. Paged scan
+retained as the discovery path.
+
 ## OPEN — `verifyTally.js`: tx-hash receipt mode (log-depth decay)
 
 **Problem.** Tier 2 verification reconstructs tallies from `VoteRevealed` event

@@ -4,6 +4,16 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/); versioning follows
 [Semantic Versioning](https://semver.org/).
 
+## [2.4.0] — 2026-09-25 — Tally verifier receipt mode (no contract changes)
+
+### Added
+- `scripts/verifyTally.js --tx <hash>[,…]`: reconstructs tallies from explicit
+  transaction receipts instead of block-range scans — immune to free-tier
+  `eth_getLogs` depth caps; proven live against D1 (`[1,0,0]`, Alice wins).
+- `test/verifyTally.test.js`: receipt-mode reconstruction + malformed-input
+  rejections (suite now 4 tests).
+- `docs/VERIFY.md`: `--tx` as the recommended path for known elections.
+
 ## [2.3.0] — 2026-09-25 — Research alignment + benchmarks + observer verification (no contract changes)
 
 ### Added

@@ -106,6 +106,17 @@ otherwise decode with the ABIs in `artifacts/contracts/Voting.sol/Voting.json`.
 
 ### 2.3 Offline tally script
 
+Preferred form for known elections — receipt mode needs no block-range scan,
+so free-tier log caps cannot bite:
+
+```bash
+node scripts/verifyTally.js --rpc $RPC --voting $VOTING \
+  --tx 0x7b6988dfc4cfbe768cd14464241f0485d55f7beb89c2742fa966a894d016a896
+# ok: true, counts [1,0,0], total 1, winner (0,1,false) — verified live on D1
+```
+
+Discovery form (reconstructs from a block window, paged serially with backoff):
+
 ```bash
 node scripts/verifyTally.js --rpc $RPC --voting $VOTING --from-block 11777000
 ```
