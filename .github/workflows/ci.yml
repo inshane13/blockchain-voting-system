@@ -69,6 +69,9 @@ jobs:
         working-directory: backend
         # TODO(legacy-peer-deps): see contracts job note above.
         run: npm ci --legacy-peer-deps
+      - name: Backend API tests
+        working-directory: backend
+        run: npm test
       - name: Live backend health smoke test
         working-directory: backend
         run: |
@@ -81,6 +84,19 @@ jobs:
           curl -sf http://localhost:5000/health
           curl -sf http://localhost:5000/api/voters
           kill $SERVER_PID 2>/dev/null || true
+
+  e2e-local:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      # TODO(legacy-peer-deps): see contracts job note above.
+      - run: npm ci --legacy-peer-deps
+      - name: Full commit-reveal-winner cycle (ephemeral Hardhat network)
+        run: npx hardhat run scripts/e2e-local.js
 
   audit:
     runs-on: ubuntu-latest

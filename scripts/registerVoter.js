@@ -18,7 +18,9 @@ async function main() {
   }
 
   const [deployer] = await hre.ethers.getSigners();
-  const voter = (process.argv[2] && process.argv[2].trim()) || deployer.address;
+  // Voter source: VOTER_ADDR env (used by `make register VOTER=0x...`), else deployer.
+  // NOTE: `hardhat run` rejects unknown positional CLI args, so argv is not used.
+  const voter = (process.env.VOTER_ADDR && process.env.VOTER_ADDR.trim()) || deployer.address;
   if (!hre.ethers.isAddress(voter)) {
     throw new Error(`Invalid voter address: ${voter}`);
   }

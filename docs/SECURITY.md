@@ -1,6 +1,6 @@
 # Security — Blockchain Voting System
 
-Version: 2.1 · Status: implemented (this document describes the code as shipped)
+Version: 2.2 · Status: implemented (this document describes the code as shipped)
 
 ## 1. Threat Model
 

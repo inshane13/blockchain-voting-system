@@ -4,6 +4,31 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/); versioning follows
 [Semantic Versioning](https://semver.org/).
 
+## [2.2.0] — 2026-09-25 — Automation, tests, CI/CD, verified maths (no contract changes)
+
+### Added
+- Root `Makefile`: single entry point for install/compile/test/lint/build/smoke/
+  e2e/deploy/register/audit/ci/clean (idempotent; secrets never echoed).
+- Hardhat suite 29 → 50: full `VotingFactory` describe (10), registry extras (4:
+  soft-clear, re-add, zero-remove, owner), getters/math/edges (7: deadline ordering,
+  OOB votes, lifecycle flags, math vectors, 2-2-1 tie, conservation, early reveal).
+- `backend/test/api.test.js`: 19 API tests on `node:test` (zero new deps), incl. a
+  dedicated rate-limit suite (budget headers + 429 + `Retry-After`).
+- `scripts/e2e-local.js`: deterministic factory tie + winner + event-enumeration
+  E2E, wired to `make e2e-local` and CI.
+- `VOTER_ADDR` env support in `scripts/registerVoter.js` (hardhat rejects
+  positional CLI args); `make register VOTER=0x...`.
+- CI: backend `npm test` step + `e2e-local` job.
+- `docs/MATH.md`: commitment math with verified vectors, phase inequalities,
+  winner truth table, conservation invariants, re-verification procedure.
+
+### Fixed
+- README testing section referenced non-existent scripts (`frontend npm test`,
+  root `npm run ci`); now documents the Makefile truthfully.
+
+### Verification
+- `make ci` green: 50 contract + 19 backend tests, lint, build, smoke, E2E.
+
 ## [2.1.1] — 2026-09-25 — Middleware-order fix + spec convergence (no contract changes)
 
 ### Fixed

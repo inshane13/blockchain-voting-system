@@ -130,25 +130,28 @@ npx hardhat run scripts/registerVoter.ts --network sepolia 0xVoterAddress
 
 ## 🧪 Testing
 
+The `Makefile` is the single entry point (`make help` lists everything):
+
 ```bash
-# Smart contract tests
-npx hardhat test
-
-# With gas reporting
-REPORT_GAS=true npx hardhat test
-
-# Coverage
-npx hardhat coverage
-
-# Frontend tests
-cd frontend && npm test
-
-# Backend tests
-cd backend && npm test
-
-# Full CI pipeline
-npm run ci
+make install      # all workspaces (uses --legacy-peer-deps, see install note)
+make compile      # contracts
+make test         # 50 Hardhat tests (unit + math vectors + factory)
+make test-backend # 19 backend API tests (node:test, zero extra deps)
+make lint         # solhint + frontend eslint
+make build        # frontend production build
+make smoke        # backend live health smoke test
+make e2e-local    # full commit->reveal->winner cycle, deterministic, no secrets
+make audit        # npm audit (informational)
+make ci           # the full gate (mirrors CI)
 ```
+
+Raw equivalents: `npx hardhat test`, `cd backend && npm test`,
+`npx hardhat run scripts/e2e-local.js`. There is no frontend unit-test
+suite (no test runner installed — kept that way deliberately; see
+`docs/SECURITY.md` supply-chain policy).
+
+Maths behind the tests (commitment vectors, phase inequalities, tie truth
+table, conservation invariants): [`docs/MATH.md`](docs/MATH.md).
 
 ## 📁 Project Structure
 

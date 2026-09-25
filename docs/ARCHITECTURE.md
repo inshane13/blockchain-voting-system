@@ -1,6 +1,6 @@
 # Architecture — Blockchain Voting System
 
-Version: 2.1 · Status: implemented (this document describes the code as shipped)
+Version: 2.2 · Status: implemented (this document describes the code as shipped)
 
 ## 1. System Overview
 
@@ -90,9 +90,15 @@ share the max **and** max > 0; `winnerIdx` = lowest index at max (0 when no vote
 - Voters: `scripts/registerVoter.js` (defaults to deployer).
 - Secrets: local gitignored `.env`; CI via repository secrets. Never committed.
 
-## 8. Test Map (29 Hardhat tests)
+## 8. Test Map (50 Hardhat tests + 19 backend tests + local E2E)
 
 Deployment (4) · commit phase (5 incl. deadline edge + double-commit) · reveal (8 incl.
 exact-boundary, wrong-salt, no-commit, post-deadline, collision) · eligibility (1) ·
-winner (5: clear, 2-way tie, 3-way tie, 3-way-with-winner, zero votes) · registry (6).
-Plus: frontend build+lint, backend live `/health` smoke in CI.
+winner (5: clear, 2-way tie, 3-way tie, 3-way-with-winner, zero votes) · registry (10:
++ soft-clear, re-add, zero-address remove, owner) · getters/math/edges (7: deadline
+ordering, OOB votes, lifecycle flags, math vectors, 2-2-1 tie, conservation,
+early-reveal) · factory (10: owner, addresses, event args, admin ownership, registry
+binding, only-owner, empty/zero guards, isolation, full cycle).
+Plus: 19 backend API tests (`backend/test/`, node:test), deterministic local E2E
+(`scripts/e2e-local.js`, also run in CI), frontend build+lint, backend live `/health`
+smoke in CI. Formal claims + vectors: `docs/MATH.md`.
