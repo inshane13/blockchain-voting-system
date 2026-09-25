@@ -174,7 +174,21 @@ export default function Home() {
     const fetchElections = async () => {
       try {
         const filter = factory.filters.ElectionCreated();
-        const events = await factory.queryFilter(filter, 0, 'latest');
+        // Providers (e.g. Alchemy free tier) reject huge log ranges with
+        // "service temporarily unavailable". Query the recent window only,
+        // shrinking on failure — elections are always recent in practice.
+        const provider = factory.runner?.provider;
+        let events = null;
+        let lastErr = null;
+        for (const span of [20000, 5000, 2000]) {
+          try {
+            const latest = await provider.getBlockNumber();
+            events = await factory.queryFilter(filter, Math.max(0, latest - span), 'latest');
+            lastErr = null;
+            break;
+          } catch (e) { lastErr = e; }
+        }
+        if (!events) throw lastErr || new Error('log query failed');
         if (cancelled) return;
         const list = events.map(e => ({
           voting: e.args.voting,
@@ -293,7 +307,23 @@ export default function Home() {
     
     try {
       setLoading(true);
-      
+      setError('');
+
+      // Chain check first: a 0x return (BAD_DATA) means no contract code at the
+      // configured address — almost always MetaMask on the wrong network.
+      // Fail fast with directions instead of a cryptic decode error.
+      if (process.env.NEXT_PUBLIC_NETWORK_ID) {
+        try {
+          const net = await votingContract.runner.provider.getNetwork();
+          if (String(net.chainId) !== String(process.env.NEXT_PUBLIC_NETWORK_ID)) {
+            setError(`Wrong network: MetaMask is on chain ${net.chainId}, but this deployment targets chain ${process.env.NEXT_PUBLIC_NETWORK_ID} (Sepolia). Switch networks in MetaMask and reconnect.`);
+            return;
+          }
+        } catch (e) {
+          console.warn('Could not detect network chainId:', e);
+        }
+      }
+
       const [name, candidates, commitDeadline, revealDeadline, voted, committed, eligible] = await Promise.all([
         votingContract.getName(),
         votingContract.getCandidates(),
@@ -347,7 +377,10 @@ export default function Home() {
       }
       
     } catch (error) {
-      setError('Error loading election data: ' + error.message);
+      const hint = error?.code === 'BAD_DATA'
+        ? ' (got empty data — usually MetaMask on the wrong network; switch to Sepolia chain 11155111)'
+        : '';
+      setError('Error loading election data: ' + error.message + hint);
     } finally {
       setLoading(false);
     }

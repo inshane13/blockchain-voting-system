@@ -4,6 +4,19 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/); versioning follows
 [Semantic Versioning](https://semver.org/).
 
+## [2.2.2] — 2026-09-25 — Frontend robustness fixes (no contract changes)
+
+### Fixed
+- Election log queries now use a bounded recent window (20k → 5k → 2k blocks)
+  instead of block 0 → latest, which free-tier RPCs reject with
+  "service temporarily unavailable".
+- `loadElectionData` checks MetaMask's chain against `NEXT_PUBLIC_NETWORK_ID`
+  first and tells the user to switch networks, instead of failing with a raw
+  `BAD_DATA` decode error (empty `0x` = no contract code on the wrong chain).
+
+### Verification
+- `frontend: lint` 0 errors, `build` success. No contract changes; Sepolia pair unaffected.
+
 ## [2.2.1] — 2026-09-25 — Frontend election-flow fixes (no contract changes)
 
 ### Fixed
