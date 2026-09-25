@@ -1,6 +1,6 @@
 {
   "name": "blockchain-based-voting-system",
-  "version": "1.0.0",
+  "version": "2.1.0",
   "description": "A blockchain-based voting system using Ethereum, Solidity, and a commit-reveal scheme",
   "main": "index.js",
   "scripts": {

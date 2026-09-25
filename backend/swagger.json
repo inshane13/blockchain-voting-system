@@ -36,7 +36,7 @@
         "responses": { "200": { "description": "Array of voter records" } }
       },
       "post": {
-        "summary": "Record a voter in the local log store (non-authoritative)",
+        "summary": "Record a voter in the local log store (non-authoritative, idempotent)",
         "requestBody": {
           "required": true,
           "content": {
@@ -50,8 +50,10 @@
           }
         },
         "responses": {
-          "201": { "description": "Created" },
-          "400": { "description": "Address required or duplicate" }
+          "201": { "description": "Created", "content": { "application/json": { "schema": { "type": "object", "properties": { "success": { "type": "boolean" }, "address": { "type": "string" } } } } } },
+          "200": { "description": "Already recorded", "content": { "application/json": { "schema": { "type": "object", "properties": { "success": { "type": "boolean" }, "address": { "type": "string" }, "created_at": { "type": "string" }, "note": { "type": "string" } } } } } },
+          "400": { "description": "Address required" },
+          "500": { "description": "Server error" }
         }
       }
     },

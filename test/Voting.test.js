@@ -3,7 +3,7 @@ import hre from "hardhat";
 
 const { ethers } = hre;
 
-const CANDIDATES = ["Alice", "Bob"];
+const CANDIDATES = ["Alice", "Bob", "Charlie"];
 const COMMIT_TIME = 3600;
 const REVEAL_TIME = 3600;
 
@@ -56,7 +56,7 @@ describe("Voting", function () {
     const { voting } = await deployFixture();
     expect(await voting.getName()).to.equal("Test Election");
     expect(await voting.getCandidates()).to.deep.equal(CANDIDATES);
-    expect(await voting.getCandidatesCount()).to.equal(2);
+    expect(await voting.getCandidatesCount()).to.equal(3);
   });
 
   it("reverts constructor with zero registry address", async function () {
@@ -252,7 +252,100 @@ describe("Voting", function () {
     expect(await voting.getTotalVotes()).to.equal(3);
   });
 
-  it("flags a tie via getWinner", async function () {
+  
+
+  it("flags three-way tie", async function () {
+    const [, voter1, voter2, voter3] = await hre.ethers.getSigners();
+    const { voting, registry } = await deployFixture();
+    
+    // voters addr1, addr2, addr3 are already registered by deployFixture
+    const salt1 = hre.ethers.id("s1");
+    const salt2 = hre.ethers.id("s2");
+    const salt3 = hre.ethers.id("s3");
+
+    const hash1 = hre.ethers.keccak256(
+      hre.ethers.AbiCoder.defaultAbiCoder().encode(
+        ["uint256", "bytes32"],
+        [0, salt1]
+      )
+    );
+    const hash2 = hre.ethers.keccak256(
+      hre.ethers.AbiCoder.defaultAbiCoder().encode(
+        ["uint256", "bytes32"],
+        [1, salt2]
+      )
+    );
+    const hash3 = hre.ethers.keccak256(
+      hre.ethers.AbiCoder.defaultAbiCoder().encode(
+        ["uint256", "bytes32"],
+        [2, salt3]
+      )
+    );
+
+    await voting.connect(voter1).commit(hash1);
+    await voting.connect(voter2).commit(hash2);
+    await voting.connect(voter3).commit(hash3);
+
+    await hre.network.provider.send("evm_increaseTime", [3600]);
+    await hre.network.provider.send("evm_mine");
+
+    await voting.connect(voter1).reveal(0, salt1);
+    await voting.connect(voter2).reveal(1, salt2);
+    await voting.connect(voter3).reveal(2, salt3);
+
+    await hre.network.provider.send("evm_increaseTime", [3600]);
+    await hre.network.provider.send("evm_mine");
+
+    const [, votes, isTie] = await voting.getWinner();
+    expect(votes).to.equal(1n);
+    expect(isTie).to.equal(true);
+    expect(await voting.getTotalVotes()).to.equal(3n);
+  })
+
+  it("flags three-way tie with Alice winning", async function () {
+    const [, voter1, voter2, voter3] = await hre.ethers.getSigners();
+    const { voting, registry } = await deployFixture();
+    
+    const salt1 = hre.ethers.id("s1");
+    const salt2 = hre.ethers.id("s2");
+    const salt3 = hre.ethers.id("s3");
+
+    const hash1 = hre.ethers.keccak256(
+      hre.ethers.AbiCoder.defaultAbiCoder().encode(
+        ["uint256", "bytes32"], [0, salt1]
+      )
+    );
+    const hash2 = hre.ethers.keccak256(
+      hre.ethers.AbiCoder.defaultAbiCoder().encode(
+        ["uint256", "bytes32"], [1, salt2]
+      )
+    );
+    const hash3 = hre.ethers.keccak256(
+      hre.ethers.AbiCoder.defaultAbiCoder().encode(
+        ["uint256", "bytes32"], [0, salt3]
+      )
+    );
+
+    await voting.connect(voter1).commit(hash1);
+    await voting.connect(voter2).commit(hash2);
+    await voting.connect(voter3).commit(hash3);
+
+    await hre.network.provider.send("evm_increaseTime", [3600]);
+    await hre.network.provider.send("evm_mine");
+
+    await voting.connect(voter1).reveal(0, salt1);
+    await voting.connect(voter2).reveal(1, salt2);
+    await voting.connect(voter3).reveal(0, salt3);
+
+    await hre.network.provider.send("evm_increaseTime", [3600]);
+    await hre.network.provider.send("evm_mine");
+
+    const [winner, votes, isTie] = await voting.getWinner();
+    expect(winner).to.equal(0);
+    expect(votes).to.equal(2n);
+    expect(isTie).to.equal(false);
+    expect(await voting.getTotalVotes()).to.equal(3n);
+  });;it("flags a tie via getWinner", async function () {
     const { voting, addr1, addr2 } = await deployFixture();
     const s1 = makeSalt("s1");
     const s2 = makeSalt("s2");

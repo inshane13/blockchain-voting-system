@@ -35,6 +35,7 @@ const VOTING_ABI = [
 const VOTER_REGISTRY_ABI = [
   "function isEligible(address) view returns (bool)",
   "function addVoter(address)",
+  "function removeVoter(address)",
   "event VoterAdded(address indexed voter)",
   "event VoterRemoved(address indexed voter)",
   "error InvalidAddress()",
@@ -43,12 +44,16 @@ const VOTER_REGISTRY_ABI = [
 
 const VOTING_INTERFACE = new ethers.Interface(VOTING_ABI);
 const REGISTRY_INTERFACE = new ethers.Interface(VOTER_REGISTRY_ABI);
+const FACTORY_INTERFACE = new ethers.Interface([
+  "function createElection(string name, string[] candidates, uint256 commitDuration, uint256 revealDuration, address admin) returns (address, address)",
+  "event ElectionCreated(address indexed voting, address indexed registry, string name, string[] candidates, uint256 commitDuration, uint256 revealDuration)"
+]);
 
 // Decode custom errors (revert data) into a readable label; fall back to standard messages.
 const describeError = (error) => {
   const data = error?.data || error?.info?.error?.data;
   if (data) {
-    for (const iface of [VOTING_INTERFACE, REGISTRY_INTERFACE]) {
+    for (const iface of [VOTING_INTERFACE, REGISTRY_INTERFACE, FACTORY_INTERFACE]) {
       try {
         const parsed = iface.parseError(data);
         if (parsed) return parsed.name;
@@ -114,8 +119,14 @@ export default function Home() {
   const [success, setSuccess] = useState('');
 
   // Contract addresses from environment variables
-  const VOTING_ADDRESS = process.env.NEXT_PUBLIC_VOTING_ADDRESS;
-  const VOTER_REGISTRY_ADDRESS = process.env.NEXT_PUBLIC_VOTER_REGISTRY_ADDRESS;
+  const VOTING_ADDRESS = process.env.NEXT_PUBLIC_VOTING_ADDRESS || "";
+  const VOTER_REGISTRY_ADDRESS = process.env.NEXT_PUBLIC_VOTER_REGISTRY_ADDRESS || "";
+  const FACTORY_ADDRESS = process.env.NEXT_PUBLIC_FACTORY_ADDRESS || "";
+
+  const [factory, setFactory] = useState(null);
+  const [currentElection, setCurrentElection] = useState(null);
+  const [elections, setElections] = useState([]);
+  const [selectedVotingAddress, setSelectedVotingAddress] = useState('');
 
   useEffect(() => {
     connectWallet();
@@ -128,16 +139,72 @@ export default function Home() {
     }
   }, [connected, signer]);
 
-  // Add periodic refresh for election data
+  // Factory: load factory contract if address configured, optionally fetch elections
+  useEffect(() => {
+    if (!signer || !FACTORY_ADDRESS) return;
+    try {
+      const factoryCon = new ethers.Contract(
+        FACTORY_ADDRESS,
+        [
+          "function createElection(string name, string[] candidates, uint256 commitDuration, uint256 revealDuration, address admin) returns (address, address)",
+        ],
+        signer
+      );
+      setFactory(factoryCon);
+    } catch (e) {
+      console.error("Factory init error:", e);
+    }
+  }, [signer, FACTORY_ADDRESS]);
+
+  // Fetch elections from factory
+  useEffect(() => {
+    if (!signer || !FACTORY_ADDRESS || !factory) return;
+    let cancelled = false;
+    const fetchElections = async () => {
+      try {
+        const filter = factory.filters.ElectionCreated();
+        const events = await factory.queryFilter(filter, 0, 'latest');
+        if (cancelled) return;
+        const list = events.map(e => ({
+          voting: e.args.voting,
+          registry: e.args.registry,
+          name: e.args.name
+        }));
+        setElections(list);
+        if (list.length > 0) {
+          setSelectedVotingAddress((prev) => prev || list[0].voting);
+        }
+      } catch (e) {
+        console.error('Factory events error:', e);
+      }
+    };
+    fetchElections();
+    return () => { cancelled = true; };
+  }, [factory, signer, FACTORY_ADDRESS]);
+
   useEffect(() => {
     if (!connected || !votingContract) return;
-    
-    const interval = setInterval(() => {
-      loadElectionData();
-    }, 10000); // Refresh every 10 seconds
-    
-    return () => clearInterval(interval);
-  }, [connected, votingContract, account]);
+
+    // Listen for VoteCommitted events from the contract
+    votingContract.on("VoteCommitted", (voter, hash, event) => {
+      logEventToBackend({ type: "commit", voter, hash });
+      loadElectionData(); // Refresh immediately
+      setSuccess("Vote committed confirmed!");
+    });
+
+    // Listen for VoteRevealed events from the contract
+    votingContract.on("VoteRevealed", (voter, candidateIndex, event) => {
+      logEventToBackend({ type: "reveal", voter, candidateIndex: Number(candidateIndex) });
+      loadElectionData(); // Refresh immediately
+      setSuccess("Vote revealed confirmed!");
+    });
+
+    // Cleanup on unmount
+    return () => {
+      votingContract.removeAllListeners("VoteCommitted");
+      votingContract.removeAllListeners("VoteRevealed");
+    };
+  }, [connected, votingContract]);
 
   const connectWallet = async () => {
     try {
@@ -368,9 +435,12 @@ export default function Home() {
     }
   };
 
+  // Backend audit-log base URL. Configured via env; localhost fallback is dev-only.
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+
   const logEventToBackend = async (eventData) => {
     try {
-      await fetch('http://localhost:5000/api/vote-events', {
+      await fetch(`${BACKEND_URL}/api/vote-events`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -410,6 +480,24 @@ export default function Home() {
         {connected && account ? (
           <>
             <p><strong>Connected Account:</strong> {account.slice(0, 6)}...{account.slice(-4)}</p>
+            <p><strong>Active Election:</strong> {selectedVotingAddress ? selectedVotingAddress.slice(0, 6) + '...' + selectedVotingAddress.slice(-4) : VOTING_ADDRESS ? VOTING_ADDRESS.slice(0, 6) + '...' + VOTING_ADDRESS.slice(-4) : 'None'}</p>
+            {elections.length > 1 && (
+              <div style={{ margin: '8px 0' }}>
+                <label><strong>Switch Election:</strong></label>
+                <select
+                  onChange={(e) => setSelectedVotingAddress(e.target.value)}
+                  value={selectedVotingAddress}
+                  style={{ marginLeft: '8px', padding: '4px 8px', cursor: 'pointer' }}
+                >
+                  <option value="">-- Select Election --</option>
+                  {elections.map((e, i) => (
+                    <option key={i} value={e.voting}>
+                      {e.name} ({e.voting.slice(0, 6)}...{e.voting.slice(-4)})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <p><strong>Eligibility:</strong> {isEligible ? '✅ Eligible to vote' : '❌ Not eligible'}</p>
             <button onClick={handleDisconnect} style={{ padding: '10px 20px', cursor: 'pointer', backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '4px' }}>
               Disconnect

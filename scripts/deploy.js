@@ -1,78 +1,103 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import dotenv from "dotenv";
-import hre from "hardhat";
-
-dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function main() {
   const [deployer] = await hre.ethers.getSigners();
-  console.log("Deploying with account:", deployer.address);
+  console.log("Deployer:", deployer.address);
+  console.log("Network:", hre.network.name);
 
-  const VoterRegistry = await hre.ethers.getContractFactory("VoterRegistry");
-  const voterRegistry = await VoterRegistry.deploy(deployer.address);
-  await voterRegistry.waitForDeployment();
-  const registryAddress = await voterRegistry.getAddress();
-  console.log("VoterRegistry deployed to:", registryAddress);
+  // 1. VotingFactory
+  const Factory = await hre.ethers.getContractFactory("VotingFactory");
+  const factory = await Factory.deploy(deployer.address);
+  await factory.waitForDeployment();
+  const factoryAddress = await factory.getAddress();
+  console.log("VotingFactory:", factoryAddress);
 
+  // 2. Create first election via factory
   const candidates = ["Alice", "Bob", "Charlie"];
-  const commitTime = 3600; // 1 hour
-  const revealTime = 3600; // 1 hour
+  const commitDuration = 3600;
+  const revealDuration = 3600;
 
-  const Voting = await hre.ethers.getContractFactory("Voting");
-  const voting = await Voting.deploy(
+  const tx = await factory.createElection(
     "General Election",
     candidates,
-    commitTime,
-    revealTime,
-    registryAddress
+    commitDuration,
+    revealDuration,
+    deployer.address // admin of the new registry
   );
-  await voting.waitForDeployment();
-  const votingAddress = await voting.getAddress();
-  console.log("Voting deployed to:", votingAddress);
+  const receipt = await tx.wait();
 
-  const deploymentInfo = {
+  // Parse ElectionCreated event
+  let votingAddress;
+  let registryAddress;
+  for (const log of receipt.logs) {
+    try {
+      const parsed = factory.interface.parseLog(log);
+      if (parsed && parsed.name === "ElectionCreated") {
+        votingAddress = parsed.args.voting;
+        registryAddress = parsed.args.registry;
+        break;
+      }
+    } catch {
+      /* not our event */
+    }
+  }
+
+  if (!votingAddress || !registryAddress) {
+    throw new Error("Failed to parse ElectionCreated event");
+  }
+
+  console.log("Voting:", votingAddress);
+  console.log("VoterRegistry:", registryAddress);
+
+  // 3. Persist deployments.json
+  const deployments = {
+    factory: factoryAddress,
     voterRegistry: registryAddress,
     voting: votingAddress,
     deployer: deployer.address,
     network: hre.network.name,
     timestamp: new Date().toISOString(),
   };
+  const deploymentsPath = path.join(__dirname, "..", "deployments.json");
+  fs.writeFileSync(deploymentsPath, JSON.stringify(deployments, null, 2));
+  console.log("Wrote deployments.json");
 
-  fs.writeFileSync(
-    path.join(__dirname, "..", "deployments.json"),
-    JSON.stringify(deploymentInfo, null, 2)
+  // 4. Write frontend/.env.local
+  const networkId =
+    hre.network.config.chainId?.toString() ||
+    process.env.NEXT_PUBLIC_NETWORK_ID ||
+    "11155111";
+  const rpcUrl =
+    process.env.NEXT_PUBLIC_RPC_URL ||
+    process.env.SEPOLIA_URL ||
+    "http://127.0.0.1:8545";
+
+  const envLocal = [
+    `NEXT_PUBLIC_VOTING_ADDRESS=${votingAddress}`,
+    `NEXT_PUBLIC_VOTER_REGISTRY_ADDRESS=${registryAddress}`,
+    `NEXT_PUBLIC_FACTORY_ADDRESS=${factoryAddress}`,
+    `NEXT_PUBLIC_NETWORK_ID=${networkId}`,
+    `NEXT_PUBLIC_RPC_URL=${rpcUrl}`,
+  ].join("\n");
+
+  const frontendEnvPath = path.join(__dirname, "..", "frontend", ".env.local");
+  fs.mkdirSync(path.dirname(frontendEnvPath), { recursive: true });
+  fs.writeFileSync(frontendEnvPath, envLocal + "\n");
+  console.log("Wrote frontend/.env.local");
+
+  console.log("\nDeploy complete. Next:");
+  console.log(
+    "  npx hardhat run scripts/registerVoter.js --network",
+    hre.network.name
   );
-
-  const rpcUrlRaw = process.env.SEPOLIA_URL || process.env.POLYGON_URL;
-  if (!rpcUrlRaw) {
-    console.warn("Warning: neither SEPOLIA_URL nor POLYGON_URL is set; writing empty RPC URL.");
-  }
-  const networkId = hre.network.config.chainId || 11155111;
-
-  const envContent = `# Auto-generated from deployment on ${deploymentInfo.timestamp}
-NEXT_PUBLIC_VOTING_ADDRESS=${votingAddress}
-NEXT_PUBLIC_VOTER_REGISTRY_ADDRESS=${registryAddress}
-NEXT_PUBLIC_NETWORK_ID=${networkId}
-NEXT_PUBLIC_RPC_URL=${rpcUrlRaw || ""}
-`;
-
-  fs.writeFileSync(path.join(__dirname, "..", "frontend", ".env.local"), envContent);
-  console.log("Wrote deployments.json and frontend/.env.local");
-
-  console.log("\nDeployment complete.");
-  console.log("VoterRegistry:", registryAddress);
-  console.log("Voting:", votingAddress);
-  console.log("Restart the frontend dev server to pick up the new contract addresses.");
 }
 
-main()
-  .then(() => process.exit(0))
-  .catch((error) => {
-    console.error(error);
-    process.exit(1);
-  });
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

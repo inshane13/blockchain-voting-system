@@ -19,7 +19,9 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
-      - run: npm ci
+      # TODO(legacy-peer-deps): required by peer conflicts in hardhat-toolbox/ethers v6
+      # graph. Do NOT drop without verifying `npm ci` resolves cleanly on node 18+20.
+      - run: npm ci --legacy-peer-deps
       - run: npx hardhat compile
       - run: npx hardhat test
       - run: npx solhint 'contracts/**/*.sol'
@@ -38,7 +40,8 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: Install frontend deps
         working-directory: frontend
-        run: npm ci
+        # TODO(legacy-peer-deps): see contracts job note above.
+        run: npm ci --legacy-peer-deps
       - name: Lint
         working-directory: frontend
         run: npm run lint
@@ -48,6 +51,7 @@ jobs:
         env:
           NEXT_PUBLIC_VOTING_ADDRESS: "0x0000000000000000000000000000000000000000"
           NEXT_PUBLIC_VOTER_REGISTRY_ADDRESS: "0x0000000000000000000000000000000000000000"
+          NEXT_PUBLIC_FACTORY_ADDRESS: "0x0000000000000000000000000000000000000000"
 
   backend:
     runs-on: ubuntu-latest
@@ -63,7 +67,34 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - name: Install backend deps
         working-directory: backend
-        run: npm ci
-      - name: Smoke test server module
+        # TODO(legacy-peer-deps): see contracts job note above.
+        run: npm ci --legacy-peer-deps
+      - name: Live backend health smoke test
         working-directory: backend
-        run: node -e "require('better-sqlite3'); console.log('sqlite ok')"
+        run: |
+          node server.js &
+          SERVER_PID=$!
+          for i in $(seq 1 20); do
+            if curl -sf http://localhost:5000/health; then break; fi
+            sleep 0.5
+          done
+          curl -sf http://localhost:5000/health
+          curl -sf http://localhost:5000/api/voters
+          kill $SERVER_PID 2>/dev/null || true
+
+  audit:
+    runs-on: ubuntu-latest
+    # Informational only (continue-on-error): transitive highs in ws/ethers/hardhat
+    # have no non-breaking fix and local installs are engine-blocked. Tracked in docs/SECURITY.md.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm audit --audit-level=high
+      - run: npm audit --audit-level=high
+        working-directory: backend
+      - run: npm audit --audit-level=high
+        working-directory: frontend
