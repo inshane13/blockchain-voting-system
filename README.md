@@ -1,4 +1,6 @@
-# Secure Blockchain Voting System
+# Decentralized E-Voting System (v2.3.0)
+
+> **Scope & Architectural Framing**: A commit-reveal integrity prototype; explicitly does not provide voter anonymity post-reveal, coercion resistance, or national-scale L1 throughput.
 
 [![CI](https://github.com/yourorg/blockchain-voting-system/workflows/CI/badge.svg)](https://github.com/yourorg/blockchain-voting-system/actions/workflows/ci.yml)
 [![Security](https://github.com/yourorg/blockchain-voting-system/workflows/Security/badge.svg)](https://github.com/yourorg/blockchain-voting-system/actions/workflows/security-scan.yml)

@@ -4,6 +4,15 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/); versioning follows
 [Semantic Versioning](https://semver.org/).
 
+## [2.3.0] — 2026-09-25 — Research alignment, Pass A (no contract changes)
+
+### Added
+- `docs/RESEARCH.md`: Manda & Bhukya (2024) meta-analysis mapping — technical
+  coverage matrix, §4.2 policy table, explicit non-goals, D1/D2/D3 deployment
+  lineage, snapshot pinned to live Sepolia triple.
+- README first-line scope framing (integrity prototype; no anonymity,
+  coercion resistance, or national-scale claims).
+
 ## [2.2.2] — 2026-09-25 — Frontend robustness fixes (no contract changes)
 
 ### Fixed
